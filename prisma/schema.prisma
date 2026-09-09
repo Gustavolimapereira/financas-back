@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum FinancialEntryOrigin {
+  FILE
+  MANUAL
+}
+
+enum FinancialEntryType {
+  ENTRADA
+  SAIDA
+}
+
+model User {
+  id               String           @id @default(uuid()) @db.Uuid
+  name             String
+  email            String           @unique
+  passwordHash     String
+  role             UserRole         @default(USER)
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  sessions         AuthSession[]
+  financialEntries FinancialEntry[]
+
+  @@index([email])
+}
+
+model FinancialEntry {
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String               @db.Uuid
+  place          String
+  amount         Decimal              @db.Decimal(14, 2)
+  origin         FinancialEntryOrigin
+  type           FinancialEntryType   @default(SAIDA)
+  sourceFileName String?
+  referenceMonth DateTime             @db.Date
+  createdAt      DateTime             @default(now())
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, referenceMonth])
+  @@index([userId, referenceMonth, type])
+  @@index([origin])
+}
+
+model AuthSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  refreshTokenHash String
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+}
